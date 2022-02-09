@@ -162,7 +162,7 @@ const Config::Option & Config::getOption(const std::string &key) const
     \param key is the name of the option
     \result The value of the specified option.
 */
-std::string Config::get(const std::string &key) const
+const std::string & Config::get(const std::string &key) const
 {
     return getOption(key).value;
 }
@@ -213,7 +213,7 @@ void Config::set(const std::string &key, const std::string &value)
     \param name is the name of the attribute
     \result The value of the specified attribute.
 */
-std::string Config::getAttribute(const std::string &key, const std::string &name) const
+const std::string & Config::getAttribute(const std::string &key, const std::string &name) const
 {
     return getOption(key).attributes.at(name);
 }
