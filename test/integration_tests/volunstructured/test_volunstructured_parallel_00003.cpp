@@ -198,8 +198,6 @@ int subtest_001(int rank)
 
     std::unordered_map<long, int> cellRanks;
 
-    std::unordered_set<int> rrr;
-
     if (rank == 0) {
         int nProcs;
         MPI_Comm_size(patch->getCommunicator(), &nProcs);
