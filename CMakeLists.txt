@@ -578,7 +578,7 @@ set(VOLOCTREE_DEPS "common;PABLO;patchkernel")
 set(VOLUNSTRUCTURED_DEPS "common;patchkernel")
 set(RBF_DEPS "operators;IO")
 set(DISCRETIZATION_DEPS "common;containers;LA;patchkernel")
-set(LEVELSET_DEPS "common;communications;SA;CG;surfunstructured;voloctree;volcartesian;IO")
+set(LEVELSET_DEPS "common;communications;SA;CG;surfunstructured;voloctree;volcartesian;volunstructured;IO")
 set(POD_DEPS "IO;common;containers;voloctree")
 
 #------------------------------------------------------------------------------------#
