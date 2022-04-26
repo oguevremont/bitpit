@@ -94,7 +94,7 @@ DiscreteStencil<weight_t>::DiscreteStencil(const weight_t &zero)
 }
 
 /*!
-* Initialize the stencil
+* Constructor
 *
 * \param size is the stencil size, expressed in number of elements
 * \param zero is the value to be used as zero
@@ -103,7 +103,8 @@ template<typename weight_t>
 DiscreteStencil<weight_t>::DiscreteStencil(std::size_t size, const weight_t &zero)
     : m_zero(zero),
       m_pattern(size, -1), m_weights(size, m_zero),
-      m_constant(m_zero)
+      m_constant(m_zero),
+      m_weightPool(nullptr)
 {
 }
 
@@ -118,7 +119,8 @@ template<typename weight_t>
 DiscreteStencil<weight_t>::DiscreteStencil(std::size_t size, const long *pattern, const weight_t &zero)
     : m_zero(zero),
       m_pattern(pattern, pattern + size), m_weights(size, m_zero),
-      m_constant(m_zero)
+      m_constant(m_zero),
+      m_weightPool(nullptr)
 {
 }
 
@@ -134,8 +136,23 @@ template<typename weight_t>
 DiscreteStencil<weight_t>::DiscreteStencil(std::size_t size, const long *pattern, const weight_t *weights, const weight_t &zero)
     : m_zero(zero),
       m_pattern(pattern, pattern + size), m_weights(weights, weights + size),
-      m_constant(m_zero)
+      m_constant(m_zero),
+      m_weightPool(nullptr)
 {
+}
+
+/*!
+* Set the weight pool.
+*
+* When a weight is deleted it will be stored in thr weight pool and reused
+* the next time a new weight is needed. Setting the weight pool is optional.
+*
+* \param pool is the wieght storage that will be used as a pool
+*/
+template<typename weight_t>
+void DiscreteStencil<weight_t>::setWeightPool(weight_storage_type *pool)
+{
+    m_weightPool = pool;
 }
 
 /*!
@@ -487,7 +504,14 @@ template<typename weight_t>
 void DiscreteStencil<weight_t>::appendItem(long id, const weight_t &weight)
 {
     m_pattern.push_back(id);
-    m_weights.push_back(weight);
+    if (m_weightPool && !m_weightPool->empty()) {
+        weight_t newWeight = std::move(m_weightPool->back());
+        m_weightPool->pop_back();
+        m_weights.push_back(std::move(newWeight));
+        m_weights.back() = weight;
+    } else {
+        m_weights.push_back(weight);
+    }
 }
 
 /*!
@@ -585,11 +609,27 @@ template<typename weight_t>
 void DiscreteStencil<weight_t>::clear(bool release)
 {
     m_pattern.clear();
-    m_weights.clear();
+
+    if (m_weightPool && !release) {
+        if (m_weightPool->empty()) {
+            m_weights.swap(*m_weightPool);
+        } else {
+            m_weightPool->insert(m_weightPool->end(), std::make_move_iterator(m_weights.begin()),
+                           std::make_move_iterator(m_weights.end()));
+            m_weights.clear();
+        }
+    } else {
+        m_weights.clear();
+    }
 
     if (release) {
         m_pattern.shrink_to_fit();
         m_weights.shrink_to_fit();
+
+        if (m_weightPool) {
+            m_weightPool->clear();
+            m_weightPool->shrink_to_fit();
+        }
     }
 
     zeroConstant();

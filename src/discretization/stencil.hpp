@@ -68,6 +68,7 @@ public:
     long NULL_ID = - std::numeric_limits<long>::max();
 
     typedef weight_t weight_type;
+    typedef std::vector<weight_type> weight_storage_type;
 
     /**
     * Defines an item of the stencil
@@ -81,6 +82,8 @@ public:
     DiscreteStencil(std::size_t nItems, const weight_t &zero = weight_t());
     DiscreteStencil(std::size_t size, const long *pattern, const weight_t &zero = weight_t());
     DiscreteStencil(std::size_t size, const long *pattern, const weight_t *weights, const weight_t &zero = weight_t());
+
+    void setWeightPool(weight_storage_type *pool);
 
     void initialize(std::size_t nItems, const weight_t &zero = weight_t());
     void initialize(std::size_t size, const long *pattern, const weight_t &zero = weight_t());
@@ -145,8 +148,10 @@ private:
 
     weight_t m_zero;
     std::vector<long> m_pattern;
-    std::vector<weight_t> m_weights;
+    weight_storage_type m_weights;
     weight_t m_constant;
+
+    weight_storage_type *m_weightPool;
 
     weight_t * findWeight(long id);
     const weight_t * findWeight(long id) const;
