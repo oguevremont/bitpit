@@ -915,6 +915,15 @@ protected:
 	virtual bool isSameFace(const Cell &cell_A, int face_A, const Cell &cell_B, int face_B) const;
 
 private:
+	struct GhostVertexInfo {
+		int owner;
+	};
+
+	struct GhostCellInfo {
+		int owner;
+		int haloLayer;
+	};
+
 	std::unique_ptr<IndexGenerator<long>> m_vertexIdGenerator;
 	std::unique_ptr<IndexGenerator<long>> m_interfaceIdGenerator;
 	std::unique_ptr<IndexGenerator<long>> m_cellIdGenerator;
@@ -984,21 +993,21 @@ private:
 
 	bool m_partitioningInfoDirty;
 
-	std::unordered_map<long, int> m_ghostVertexOwners;
+	std::unordered_map<long, GhostVertexInfo> m_ghostVertexInfo;
 	std::unordered_map<int, std::vector<long>> m_ghostVertexExchangeTargets;
 	std::unordered_map<int, std::vector<long>> m_ghostVertexExchangeSources;
 
-	std::unordered_map<long, int> m_ghostCellOwners;
+	std::unordered_map<long, GhostCellInfo> m_ghostCellInfo;
 	std::unordered_map<int, std::vector<long>> m_ghostCellExchangeTargets;
 	std::unordered_map<int, std::vector<long>> m_ghostCellExchangeSources;
 
-	void setGhostVertexOwner(int id, int owner);
-	void unsetGhostVertexOwner(int id);
-	void clearGhostVertexOwners();
+	void setGhostVertexInfo(int id, int owner);
+	void unsetGhostVertexInfo(int id);
+	void clearGhostVerticesInfo();
 
-	void setGhostCellOwner(int id, int owner);
-	void unsetGhostCellOwner(int id);
-	void clearGhostCellOwners();
+	void setGhostCellInfo(int id, int owner);
+	void unsetGhostCellInfo(int id);
+	void clearGhostCellsInfo();
 
 	void _partitioningAlter_deleteGhosts();
 
