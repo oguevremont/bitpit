@@ -45,6 +45,7 @@
 
 #include "adaption.hpp"
 #include "cell.hpp"
+#include "compiler.hpp"
 #include "interface.hpp"
 #include "vertex.hpp"
 
@@ -441,7 +442,8 @@ public:
 	VertexIterator addVertex(const Vertex &source, long id = Vertex::NULL_ID);
 	VertexIterator addVertex(Vertex &&source, long id = Vertex::NULL_ID);
 	VertexIterator addVertex(const std::array<double, 3> &coords, long id = Vertex::NULL_ID);
-	long countFreeVertices() const;
+	BITPIT_DEPRECATED(long countFreeVertices() const);
+	long countBorderVertices() const;
 	long countOrphanVertices() const;
 	std::vector<long> findOrphanVertices();
 	bool deleteOrphanVertices();
@@ -510,7 +512,8 @@ public:
 	CellIterator internalCell2GhostCell(long id, int ownerRank);
 #endif
 	virtual double evalCellSize(long id) const = 0;
-	long countFreeCells() const;
+	BITPIT_DEPRECATED(long countFreeCells() const);
+	long countBorderCells() const;
 	long countOrphanCells() const;
 	virtual std::array<double, 3> evalCellCentroid(long id) const;
 	virtual void evalCellBoundingBox(long id, std::array<double,3> *minPoint, std::array<double,3> *maxPoint) const;
@@ -587,7 +590,8 @@ public:
 	InterfaceIterator addInterface(ElementType type, std::unique_ptr<long[]> &&connectStorage, long id = Element::NULL_ID);
 	bool deleteInterface(long id);
 	bool deleteInterfaces(const std::vector<long> &ids);
-	long countFreeInterfaces() const;
+	BITPIT_DEPRECATED(long countFreeInterfaces() const);
+	long countBorderInterfaces() const;
 	long countOrphanInterfaces() const;
 	std::vector<long> findOrphanInterfaces() const;
 	bool deleteOrphanInterfaces();
@@ -607,7 +611,8 @@ public:
 	InterfaceConstIterator interfaceConstEnd() const;
 
 	long countFaces() const;
-	long countFreeFaces() const;
+	long countBorderFaces() const;
+	BITPIT_DEPRECATED(long countFreeFaces() const);
 
 	bool sort();
 	bool sortVertices();

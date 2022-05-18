@@ -2089,7 +2089,19 @@ void PatchKernel::_deleteInternalVertex(long id)
 */
 long PatchKernel::countFreeVertices() const
 {
-	std::unordered_set<long> freeVertices;
+	return countBorderVertices();
+}
+
+/*!
+	Counts border vertices within the patch.
+
+	A border vertex is a vertex on a border face.
+
+	\return The number of border vertices.
+*/
+long PatchKernel::countBorderVertices() const
+{
+	std::unordered_set<long> borderVertices;
 	for (const Cell &cell : m_cells) {
 		int nCellFaces = cell.getFaceCount();
 		for (int i = 0; i < nCellFaces; ++i) {
@@ -2100,12 +2112,12 @@ long PatchKernel::countFreeVertices() const
 			int nFaceVertices = cell.getFaceVertexCount(i);
 			for (int k = 0; k < nFaceVertices; ++k) {
 				long faceVertexId = cell.getFaceVertexId(i, k);
-				freeVertices.insert(faceVertexId);
+				borderVertices.insert(faceVertexId);
 			}
 		}
 	}
 
-        return freeVertices.size();
+	return borderVertices.size();
 }
 
 /*!
@@ -3150,24 +3162,36 @@ void PatchKernel::setDeletedCellAlterationFlags(long id)
 /*!
 	Counts free cells within the patch.
 
-	A cell is free if contains at least one free face.
+	A cell is cells if contains at least one cells face.
 
 	\return The number of free cells.
 */
 long PatchKernel::countFreeCells() const
 {
-	double nFreeCells = 0;
+	return countBorderCells();
+}
+
+/*!
+	Counts border cells within the patch.
+
+	A cell is border if contains at least one border face.
+
+	\return The number of border cells.
+*/
+long PatchKernel::countBorderCells() const
+{
+	double nBorderCells = 0;
 	for (const Cell &cell : m_cells) {
 		int nCellFaces = cell.getFaceCount();
 		for (int i = 0; i < nCellFaces; ++i) {
 			if (cell.isFaceBorder(i)) {
-				++nFreeCells;
+				++nBorderCells;
 				break;
 			}
 		}
 	}
 
-	return nFreeCells;
+	return nBorderCells;
 }
 
 /*!
@@ -4599,22 +4623,34 @@ void PatchKernel::setDeletedInterfaceAlterationFlags(long id)
 }
 
 /*!
-	Counts free interfaces within the patch.
+	Counts border interfaces within the patch.
 
-	An interface is free if belongs to just one cell.
+	An interface is a border if belongs to just one cell.
 
-	\result The number of free interfaces.
+	\result The number of border interfaces.
 */
 long PatchKernel::countFreeInterfaces() const
 {
-	long nFreeInterfaces = 0;
+	return countBorderInterfaces();
+}
+
+/*!
+	Counts border interfaces within the patch.
+
+	An interface is border if belongs to just one cell.
+
+	\result The number of border interfaces.
+*/
+long PatchKernel::countBorderInterfaces() const
+{
+	long nBorderInterfaces = 0;
 	for (const Interface &interface : m_interfaces) {
 		if (interface.getNeigh() < 0) {
-			++nFreeInterfaces;
+			++nBorderInterfaces;
 		}
         }
 
-	return nFreeInterfaces;
+	return nBorderInterfaces;
 }
 
 /*!
@@ -4737,17 +4773,29 @@ long PatchKernel::countFaces() const
 */
 long PatchKernel::countFreeFaces() const
 {
-	double nFreeFaces = 0;
+	return countBorderFaces();
+}
+
+/*!
+	Counts border faces within the patch.
+
+	A face is border if a cell has no adjacent along that faces.
+
+	\result The number of border faces.
+*/
+long PatchKernel::countBorderFaces() const
+{
+	double nBorderFaces = 0;
 	for (const Cell &cell : m_cells) {
-		int nCellFaces = cell.getFaceCount();
-		for (int i = 0; i < nCellFaces; ++i) {
+		int nBorderFaces = cell.getFaceCount();
+		for (int i = 0; i < nBorderFaces; ++i) {
 			if (cell.isFaceBorder(i)) {
-				++nFreeFaces;
+				++nBorderFaces;
 			}
 		}
 	}
 
-	return nFreeFaces;
+	return nBorderFaces;
 }
 
 /*!
@@ -7404,8 +7452,8 @@ void PatchKernel::extractEnvelope(PatchKernel &envelope) const
 	// ====================================================================== //
 	// RESIZE DATA STRUCTURES                                                 //
 	// ====================================================================== //
-	envelope.reserveVertices(envelope.getVertexCount() + countFreeVertices());
-	envelope.reserveCells(envelope.getCellCount() + countFreeFaces());
+	envelope.reserveVertices(envelope.getVertexCount() + countBorderVertices());
+	envelope.reserveCells(envelope.getCellCount() + countBorderFaces());
 
 	// ====================================================================== //
 	// LOOP OVER CELLS                                                        //
@@ -7463,7 +7511,7 @@ void PatchKernel::displayTopologyStats(std::ostream &out, unsigned int padding) 
 	out << indent<< "Vertices --------------------------------"     << std::endl;
 	out << indent<< "  # vertices        " << getVertexCount()      << std::endl;
 	out << indent<< "  # orphan vertices " << countOrphanVertices() << std::endl;
-	out << indent<< "  # free vertices   " << countFreeVertices()   << std::endl;
+	out << indent<< "  # border vertices " << countBorderVertices()   << std::endl;
         //out << indent<< "  # free vertices   " << countDoubleVertices()   << std::endl;
 
 	// ====================================================================== //
@@ -7471,7 +7519,7 @@ void PatchKernel::displayTopologyStats(std::ostream &out, unsigned int padding) 
 	// ====================================================================== //
 	out << indent<< "Faces -----------------------------------"     << std::endl;
 	out << indent<< "  # faces           " << countFaces()          << std::endl;
-	out << indent<< "  # free faces      " << countFreeFaces()      << std::endl;
+	out << indent<< "  # border faces    " << countBorderFaces()    << std::endl;
 
 	// ====================================================================== //
 	// CELLS STATS                                                            //
@@ -7479,7 +7527,7 @@ void PatchKernel::displayTopologyStats(std::ostream &out, unsigned int padding) 
 	out << indent<< "Cells -----------------------------------"     << std::endl;
 	out << indent<< "  # cells           " << getCellCount()        << std::endl;
 	out << indent<< "  # orphan cells    " << countOrphanCells()    << std::endl;
-	out << indent<< "  # free cells      " << countFreeCells()      << std::endl;
+	out << indent<< "  # border cells    " << countBorderCells()    << std::endl;
         //out << indent<< "  # free vertices   " << countDoubleCells()   << std::endl;
 }
 

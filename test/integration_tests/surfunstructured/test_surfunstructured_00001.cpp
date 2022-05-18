@@ -298,15 +298,15 @@ vector<long>                            cell_list;
 
     // Vertices stats
     if (mesh.getVertexCount() != 27)            return 1;
-    if (mesh.countFreeVertices() != 20)         return 1;
+    if (mesh.countBorderVertices() != 20)       return 1;
 
     // Faces stats
     if (mesh.countFaces() != 59)                return 1;
-    if (mesh.countFreeFaces() != 21)            return 1;
+    if (mesh.countBorderFaces() != 21)          return 1;
 
     // Cells stats
     if (mesh.getCellCount() != 33)              return 1;
-    if (mesh.countFreeCells() != 21)            return 1;
+    if (mesh.countBorderCells() != 21)          return 1;
 
     // Compute 1-ring of vertex 12 ------------------------------------------ //
     ring1 = mesh.findCellVertexOneRing(7, 2);
