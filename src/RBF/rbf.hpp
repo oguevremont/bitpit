@@ -67,7 +67,7 @@ class RBFKernel{
 private:
     int     m_fields;                               /**<Number of data fields defined on RBF nodes.*/
     RBFMode m_mode;                                 /**<Behaviour of RBF class (interpolation or parametrization).*/
-    double  m_supportRadius;                        /**<Support radius of function used as Radiabl Basis Function.*/
+    std::vector<double>  m_supportRadii;            /**<Support radii of function used as Radial Basis Function.*/
     RBFBasisFunction m_typef;                       /**<Recognize type of RBF shape function actually in the class. */
     double  (*m_fPtr)(double);
 
@@ -104,7 +104,9 @@ public:
     void                    deactivateAllNodes();
 
     void                    setSupportRadius(double);
+    void                    setSupportRadius(const std::vector<double> &);
     double                  getSupportRadius();
+    std::vector<double>     getSupportRadiusVector();
 
     void                    setMode(RBFMode mode);
     RBFMode                 getMode();
@@ -117,6 +119,7 @@ public:
     bool                    removeData(int);
     bool                    removeData(std::vector<int> &);
     void                    removeAllData();
+    std::vector<std::vector<double>> getWeights();
 
     void                    fitDataToNodes();
     void                    fitDataToNodes(int);
@@ -128,6 +131,9 @@ public:
     int                     solve();
     int                     greedy(double);
 
+    virtual double calcDist(int i, int j) = 0;
+    virtual double calcDist(const std::array<double,3> & point, int j) = 0;
+
 protected:
     double                  evalError();
     int                     addGreedyPoint();
@@ -136,8 +142,6 @@ protected:
 
 private:
 
-    virtual double calcDist(int i, int j) = 0;
-    virtual double calcDist(const std::array<double,3> & point, int j) = 0;
 
 };
 
@@ -160,12 +164,13 @@ public:
     bool                    removeNode(std::vector<int> &);
     void                    removeAllNodes();
 
+    double calcDist(int i, int j);
+    double calcDist(const std::array<double,3> & point, int j);
+
 protected:
     void     swap(RBF & x) noexcept;
 
 private:
-    double calcDist(int i, int j);
-    double calcDist(const std::array<double,3> & point, int j);
 };
 
 /*!

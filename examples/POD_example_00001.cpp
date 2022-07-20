@@ -43,7 +43,7 @@ using namespace bitpit;
 
 /**
  * Run the example.
- */ 
+ */
 void run()
 {
     /**<Create POD object.*/

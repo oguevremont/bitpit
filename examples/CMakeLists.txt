@@ -75,6 +75,9 @@ if(BITPIT_BUILD_EXAMPLES)
     list(APPEND EXAMPLE_LIST "voloctree_mapper_example_00002")
     list(APPEND EXAMPLE_LIST "voloctree_mapper_example_00003")
     list(APPEND EXAMPLE_LIST "voloctree_mapper_example_00004")
+    list(APPEND EXAMPLE_LIST "levelsetRBF_prototype")
+
+    find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
     #Rules to build the examples
     foreach(EXAMPLE_NAME IN LISTS EXAMPLE_LIST)
@@ -82,6 +85,7 @@ if(BITPIT_BUILD_EXAMPLES)
         list(APPEND EXAMPLES_SOURCES ${EXAMPLE_SOURCES})
 
         add_executable(${EXAMPLE_NAME} "${EXAMPLE_SOURCES}")
+        target_link_libraries(${EXAMPLE_NAME} Eigen3::Eigen)
         target_link_libraries(${EXAMPLE_NAME} ${BITPIT_LIBRARY})
         target_link_libraries(${EXAMPLE_NAME} ${BITPIT_EXTERNAL_LIBRARIES})
         install(TARGETS ${EXAMPLE_NAME} DESTINATION doc/${PROJECT_NAME}-${BITPIT_VERSION}/examples)

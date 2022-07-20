@@ -61,9 +61,10 @@ namespace bitpit {
  */
 RBFKernel::RBFKernel()
 {
-    m_supportRadius = 1.;
-    m_nodes         = 0;
-    m_fields        = 0;
+    m_supportRadii = std::vector<double>(1);
+    m_supportRadii[0] = 1.;
+    m_nodes            = 0;
+    m_fields           = 0;
 
     m_mode = RBFMode::INTERP;
 
@@ -80,7 +81,7 @@ RBFKernel::RBFKernel()
  */
 RBFKernel::RBFKernel(const RBFKernel & other)
     : m_fields(other.m_fields), m_mode(other.m_mode),
-      m_supportRadius(other.m_supportRadius), m_typef(other.m_typef),
+      m_supportRadii(other.m_supportRadii), m_typef(other.m_typef),
       m_fPtr(other.m_fPtr), m_error(other.m_error), m_value(other.m_value),
       m_weight(other.m_weight), m_activeNodes(other.m_activeNodes),
       m_maxFields(other.m_maxFields), m_nodes(other.m_nodes)
@@ -96,7 +97,7 @@ void RBFKernel::swap(RBFKernel &other) noexcept
 {
    std::swap(m_fields, other.m_fields);
    std::swap(m_mode, other.m_mode);
-   std::swap(m_supportRadius, other.m_supportRadius);
+   std::swap(m_supportRadii, other.m_supportRadii);
    std::swap(m_typef, other.m_typef);
    std::swap(m_fPtr, other.m_fPtr);
    std::swap(m_error, other.m_error);
@@ -357,8 +358,29 @@ void RBFKernel::deactivateAllNodes()
  */
 void RBFKernel::setSupportRadius( double  radius )
 {
-    m_supportRadius = radius;
+    m_supportRadii = std::vector<double>(m_value.size() > 0 ? m_value.size() : 1);
+    for (int i = 0; i < m_supportRadii.size(); i++)
+        m_supportRadii[i] = radius;
     return;
+}
+/*!
+ * Set the support radius of all RBFKernel kernel functions. Supported in both modes.
+ * @param[in] radius support radius
+ */
+void RBFKernel::setSupportRadius( const std::vector<double> & radius )
+{
+    m_supportRadii = radius;
+    return;
+}
+
+/*!
+ * Return currently set support radius used by the first RBFKernel kernel functions.
+ * Supported in both modes.
+ * @return support radius
+ */
+double RBFKernel::getSupportRadius()
+{
+    return m_supportRadii[0];
 }
 
 /*!
@@ -366,9 +388,9 @@ void RBFKernel::setSupportRadius( double  radius )
  * Supported in both modes.
  * @return support radius
  */
-double RBFKernel::getSupportRadius()
+std::vector<double> RBFKernel::getSupportRadiusVector()
 {
-    return m_supportRadius;
+    return m_supportRadii;
 }
 
 /*!
@@ -555,6 +577,19 @@ void RBFKernel::removeAllData()
 }
 
 /*!
+ * Returns the weights associated to each nodes.
+ *
+ * @return vector containing interpolated/parameterized weights.
+ *
+ */
+std::vector<std::vector<double>> RBFKernel::getWeights()
+{
+    std::vector<std::vector<double>> v(m_weight);
+    return v;
+}
+
+
+/*!
  * Evaluates the RBF. Supported in both modes.
  * Its size matches the number of fields/weights attached to RBF.
  *
@@ -570,9 +605,8 @@ std::vector<double> RBFKernel::evalRBF( const std::array<double,3> &point)
 
     for( i=0; i<m_nodes; ++i ){
         if( m_activeNodes[i] ) {
-            dist = calcDist(point, i) / m_supportRadius;
+            dist = calcDist(point, i) / m_supportRadii[i];
             basis = evalBasis( dist );
-
             for( j=0; j<m_fields; ++j) {
                 values[j] += basis * m_weight[j][i];
             }
@@ -602,7 +636,7 @@ std::vector<double> RBFKernel::evalRBF(int jnode)
 
     for( i=0; i<m_nodes; ++i ) {
         if( m_activeNodes[i] ) {
-            dist = calcDist(jnode, i) / m_supportRadius;
+            dist = calcDist(jnode, i) / m_supportRadii[i];
             basis = evalBasis( dist );
 
             for( j=0; j<m_fields; ++j) {
@@ -656,7 +690,7 @@ int RBFKernel::solve()
     for( const auto &i : activeSet ) {
         for( const auto &j : activeSet ){
 
-            dist = calcDist(j,i) / m_supportRadius;
+            dist = calcDist(j,i) / m_supportRadii[j];
             A[k] = evalBasis( dist );
             k++;
         }
@@ -907,7 +941,7 @@ int RBFKernel::solveLSQ()
     k=0;
     for( const auto &j : activeSet ) {
         for( i=0; i<nP; ++i) {
-            dist = calcDist(j,i) / m_supportRadius;
+            dist = calcDist(j,i) / m_supportRadii[i];
             A[k] = evalBasis( dist );
             k++;
         }
