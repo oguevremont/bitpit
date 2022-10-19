@@ -358,10 +358,8 @@ void RBFKernel::deactivateAllNodes()
  */
 void RBFKernel::setSupportRadius( double  radius )
 {
-    m_supportRadii = std::vector<double>(m_value.size() > 0 ? m_value.size() : 1);
-    for (int i = 0; i < m_supportRadii.size(); i++)
-        m_supportRadii[i] = radius;
-    return;
+    m_supportRadii.resize(1);
+    m_supportRadii[0] = radius;
 }
 /*!
  * Set the support radius of all RBFKernel kernel functions. Supported in both modes.
@@ -601,11 +599,15 @@ std::vector<double> RBFKernel::evalRBF( const std::array<double,3> &point)
 {
     std::vector<double> values(m_fields, 0.);
     int                 i, j;
-    double              dist, basis;
+    double              dist, basis, invSupportRadius;
+    bool                variableSupportRadius = (m_supportRadii.size()!=1);
+    invSupportRadius = 1.0/ m_supportRadii[0];
 
     for( i=0; i<m_nodes; ++i ){
         if( m_activeNodes[i] ) {
-            dist = calcDist(point, i) / m_supportRadii[i];
+            if (variableSupportRadius)
+                invSupportRadius = 1.0 / m_supportRadii[i];
+            dist = calcDist(point, i) * invSupportRadius;
             basis = evalBasis( dist );
             for( j=0; j<m_fields; ++j) {
                 values[j] += basis * m_weight[j][i];
@@ -628,15 +630,19 @@ std::vector<double> RBFKernel::evalRBF(int jnode)
 {
     std::vector<double> values(m_fields, 0.);
     int                 i, j;
-    double              dist, basis;
+    double              dist, basis, invSupportRadius;
+    bool                variableSupportRadius = (m_supportRadii.size()!=1);
 
     if(jnode<0 || jnode>= m_nodes ) {
         return values;
     }
 
+    invSupportRadius = 1.0/ m_supportRadii[0];
     for( i=0; i<m_nodes; ++i ) {
         if( m_activeNodes[i] ) {
-            dist = calcDist(jnode, i) / m_supportRadii[i];
+            if (variableSupportRadius)
+                invSupportRadius = 1.0 / m_supportRadii[i];
+            dist = calcDist(jnode, i) * invSupportRadius;
             basis = evalBasis( dist );
 
             for( j=0; j<m_fields; ++j) {
@@ -687,10 +693,14 @@ int RBFKernel::solve()
     }
 
     k=0;
+
+    bool      variableSupportRadius = (m_supportRadii.size()!=1);
+    double    invSupportRadius      = 1.0/ m_supportRadii[0];
     for( const auto &i : activeSet ) {
         for( const auto &j : activeSet ){
-
-            dist = calcDist(j,i) / m_supportRadii[j];
+            if (variableSupportRadius)
+                invSupportRadius = 1.0 / m_supportRadii[j];
+            dist = calcDist(j,i) * invSupportRadius;
             A[k] = evalBasis( dist );
             k++;
         }
@@ -939,9 +949,13 @@ int RBFKernel::solveLSQ()
     }
 
     k=0;
-    for( const auto &j : activeSet ) {
-        for( i=0; i<nP; ++i) {
-            dist = calcDist(j,i) / m_supportRadii[i];
+    bool      variableSupportRadius = (m_supportRadii.size()!=1);
+    double    invSupportRadius      = 1.0/ m_supportRadii[0];
+    for( const auto &i : activeSet ) {
+        for( const auto &j : activeSet ){
+            if (variableSupportRadius)
+                invSupportRadius = 1.0 / m_supportRadii[i];
+            dist = calcDist(j,i) * invSupportRadius;
             A[k] = evalBasis( dist );
             k++;
         }
