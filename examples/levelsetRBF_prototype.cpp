@@ -408,6 +408,9 @@ void run(std::string filename,
         case 13:
             basisFunction = bitpit::RBFBasisFunction::C2C2;
             break;
+        case 14:
+            basisFunction = bitpit::RBFBasisFunction::COSINUS;
+            break;
         default:
             basisFunction = bitpit::RBFBasisFunction::LINEAR;
             break;
