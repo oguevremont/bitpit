@@ -319,7 +319,7 @@ void run(std::string filename,
     mesh.initializeAdjacencies();
     mesh.initializeInterfaces();
     mesh.update();
-    mesh.getVTK().setName("RBF_levelset");
+    mesh.getVTK().setName("RBF_" + filename);
     mesh.setVTKWriteTarget(PatchKernel::WriteTarget::WRITE_TARGET_CELLS_INTERNAL);
 
     timers_values.push_back(MPI_Wtime() - time_start);
@@ -488,17 +488,36 @@ void run(std::string filename,
     time_start = MPI_Wtime();
 
     bitpit::log::cout() << "Solving the system with Eigen" << std::endl;
-    Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Upper> cg;
-    cg.setTolerance(TOL);
-    cg.compute(A);
-    if (cg.info() != Eigen::Success) {
-        // decomposition failed
-        bitpit::log::cout() << "Decomposition failed" << std::endl;
-    }
-    Eigen::VectorXd x = cg.solve(b);
-    if (cg.info() != Eigen::Success) {
-        // solving failed
-        bitpit::log::cout() << "Solving failed" << std::endl;
+    Eigen::VectorXd x;
+    if (radius_ratio <= 1.0 || nb_adaptions > 0)
+    {
+        bitpit::log::cout() << "Conjugate Gradient solver" << std::endl;
+        Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Upper> cg;
+        cg.setTolerance(TOL);
+        cg.compute(A);
+        if (cg.info() != Eigen::Success) {
+            // decomposition failed
+            bitpit::log::cout() << "Decomposition failed" << std::endl;
+        }
+        x = cg.solve(b);
+        if (cg.info() != Eigen::Success) {
+            // solving failed
+            bitpit::log::cout() << "Solving failed" << std::endl;
+        }
+    } else {
+        bitpit::log::cout() << "Least Squares Conjugate Gradient solver" << std::endl;
+        Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double> > lscg;
+        lscg.setTolerance(TOL);
+        lscg.compute(A);
+        if (lscg.info() != Eigen::Success) {
+            // decomposition failed
+            bitpit::log::cout() << "Decomposition failed" << std::endl;
+        }
+        x = lscg.solve(b);
+        if (lscg.info() != Eigen::Success) {
+            // solving failed
+            bitpit::log::cout() << "Solving failed" << std::endl;
+        }
     }
     bitpit::log::cout() << "Solved Eigen system" << std::endl;
 
