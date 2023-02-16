@@ -236,7 +236,11 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                       "mesh_range",
                                       "max_num_threads",
                                       "tolerance",
-                                      "scaling"};
+                                       "scaling",
+                                       "dx",
+                                       "dy",
+                                       "dz",
+                                       "swap_inside"};
     std::vector<double>      values = {16,
                                        0,
                                        1,
@@ -244,10 +248,14 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                        0.2,
                                        1,
                                        1e-8,
-                                       1.0};
+                                       1.0,
+                                      0.0,
+                                      0.0,
+                                      0.0,
+                                      0};
     for (int i = 0; i < names.size(); i++)
     {
-        if (map.find("f") == map.end())
+        if (map.find(names[i]) == map.end())
             map[names[i]].push_back(values[i]);
     }
 }
@@ -269,6 +277,10 @@ void run(std::string filename,
     int max_num_threads     = static_cast<int>(parameters["max_num_threads"][0]);
     double TOL              =                  parameters["tolerance"][0];
     double scaling          =                  parameters["scaling"][0];
+    double dx               =                  parameters["dx"][0];
+    double dy               =                  parameters["dy"][0];
+    double dz               =                  parameters["dz"][0];
+    double swap_inside      =                  parameters["swap_inside"][0];
 
 
     std::vector<std::string> timers_name;
@@ -316,6 +328,8 @@ void run(std::string filename,
 #else
     bitpit::VolOctree mesh(dimensions, meshMin, h, dh);
 #endif
+    STL0->translate(dx, dy, dz);
+
     mesh.initializeAdjacencies();
     mesh.initializeInterfaces();
     mesh.update();
@@ -335,7 +349,7 @@ void run(std::string filename,
     std::vector<int> ids;
     levelset.getObject(id0).enableVTKOutput(bitpit::LevelSetWriteField::VALUE);
     levelset.setPropagateSign(true);
-    levelset.setSizeNarrowBand(sqrt(3.0) * h);
+    levelset.setSizeNarrowBand(3.0 * h);
     // Compute the levelset
     levelset.compute(id0);
     // Write levelset information
@@ -431,7 +445,10 @@ void run(std::string filename,
     bitpit::log::cout() << "Adding nodes to the RBF" << std::endl;
     for (size_t it_RBF = 0; it_RBF < nP_total; it_RBF++) {
         nodes[it_RBF] = mesh.evalCellCentroid(it_RBF);
-        values[it_RBF] = levelset.getObject(id0).getValue(it_RBF);
+        if (swap_inside > 0.0)
+            values[it_RBF] = - levelset.getObject(id0).getValue(it_RBF);
+        else
+            values[it_RBF] = + levelset.getObject(id0).getValue(it_RBF);
         RBFObject.addNode(nodes[it_RBF]);
         radii[it_RBF] = mesh.evalCellSize(it_RBF) * radius_ratio;
     }
@@ -489,7 +506,7 @@ void run(std::string filename,
 
     bitpit::log::cout() << "Solving the system with Eigen" << std::endl;
     Eigen::VectorXd x;
-    if (radius_ratio <= 1.0 || nb_adaptions > 0)
+    if (radius_ratio <= 1.0 && nb_adaptions == 0)
     {
         bitpit::log::cout() << "Conjugate Gradient solver" << std::endl;
         Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Upper> cg;
@@ -527,7 +544,7 @@ void run(std::string filename,
 
     bitpit::log::cout() << "Adding weights to RBFObject" << std::endl;
     for (int i = 0; i < nP_total; i++) {
-        weights[i] = x[i];
+        weights[i] = b[i];
     }
     RBFObject.addData(weights);
     bitpit::log::cout() << "Added weights to RBFObject" << std::endl;
