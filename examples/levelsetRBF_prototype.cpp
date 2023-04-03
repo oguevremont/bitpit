@@ -545,7 +545,7 @@ void run(std::string filename,
 
     bitpit::log::cout() << "Adding weights to RBFObject" << std::endl;
     for (int i = 0; i < nP_total; i++) {
-        weights[i] = b[i];
+        weights[i] = x[i];
     }
     RBFObject.addData(weights);
     bitpit::log::cout() << "Added weights to RBFObject" << std::endl;
