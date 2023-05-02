@@ -702,10 +702,10 @@ void run(std::string filename,
         bitpit::log::cout() << " - Loading stl geometry" << std::endl;
         // Make sure that the STL format is in binary (not ASCII)
         try {
-            STL0_bis->importSTL(data_path + filename + ".stl", true);
+            STL0_bis->importSTL(data_path + filename + ".stl", false);
         }
         catch (const std::bad_alloc){
-            STL0_bis->importSTL(data_path + filename + ".stl", false);
+            STL0_bis->importSTL(data_path + filename + ".stl", true);
         }
         STL0_bis->deleteCoincidentVertices();
         STL0_bis->initializeAdjacencies();
