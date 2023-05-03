@@ -240,7 +240,8 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                        "dx",
                                        "dy",
                                        "dz",
-                                       "swap_inside"};
+                                       "swap_inside",
+                                       "output_rbf_vtu"};
     std::vector<double>      values = {16,
                                        0,
                                        1,
@@ -252,6 +253,7 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                       0.0,
                                       0.0,
                                       0.0,
+                                      0,
                                       0};
     for (int i = 0; i < names.size(); i++)
     {
@@ -263,25 +265,26 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
 void run(std::string filename,
         std::string data_path,
         std::string parameter_file,
-        std::string error_type) {
+        std::string error_type)
+{
     constexpr int dimensions(3);
 
     // Parsing the parameters
     std::map<std::string, std::vector<double>> parameters;
-    parse_parameters(parameters, parameter_file," ");
-    int nb_subdivision      = static_cast<int>(parameters["nb_subdivision"][0]);
-    int nb_adaptions        = static_cast<int>(parameters["nb_adaptions"][0]);
-    double radius_ratio     =                  parameters["radius_ratio"][0];
-    int base_function       = static_cast<int>(parameters["base_function"][0]);
-    double mesh_range       =                  parameters["mesh_range"][0];
-    int max_num_threads     = static_cast<int>(parameters["max_num_threads"][0]);
-    double TOL              =                  parameters["tolerance"][0];
-    double scaling          =                  parameters["scaling"][0];
-    double dx               =                  parameters["dx"][0];
-    double dy               =                  parameters["dy"][0];
-    double dz               =                  parameters["dz"][0];
-    double swap_inside      =                  parameters["swap_inside"][0];
-
+    parse_parameters(parameters, parameter_file, " ");
+    int nb_subdivision    = static_cast<int>(parameters["nb_subdivision"][0]);
+    int nb_adaptions      = static_cast<int>(parameters["nb_adaptions"][0]);
+    double radius_ratio   = parameters["radius_ratio"][0];
+    int base_function     = static_cast<int>(parameters["base_function"][0]);
+    double mesh_range     = parameters["mesh_range"][0];
+    int max_num_threads   = static_cast<int>(parameters["max_num_threads"][0]);
+    double TOL            = parameters["tolerance"][0];
+    double scaling        = parameters["scaling"][0];
+    double dx             = parameters["dx"][0];
+    double dy             = parameters["dy"][0];
+    double dz             = parameters["dz"][0];
+    double swap_inside    = parameters["swap_inside"][0];
+    double output_rbf_vtu = parameters["output_rbf_vtu"][0];
 
     std::vector<std::string> timers_name;
     std::vector<double> timers_values;
@@ -294,21 +297,20 @@ void run(std::string filename,
 #if BITPIT_ENABLE_MPI
     std::unique_ptr<bitpit::SurfUnstructured> STL0(new bitpit::SurfUnstructured(dimensions - 1, MPI_COMM_NULL));
 #else
-    std::unique_ptr<bitpit::SurfUnstructured> STL0( new bitpit::SurfUnstructured (dimensions - 1) );
+    std::unique_ptr<bitpit::SurfUnstructured> STL0(new bitpit::SurfUnstructured(dimensions - 1));
 #endif
     bitpit::log::cout() << " - Loading stl geometry" << std::endl;
     // Make sure that the STL format is in binary (not ASCII)
     try {
         STL0->importSTL(data_path + filename + ".stl", true);
-    }
-    catch (const std::bad_alloc) {
+    } catch (const std::bad_alloc) {
         STL0->importSTL(data_path + filename + ".stl", false);
     }
     STL0->deleteCoincidentVertices();
     STL0->initializeAdjacencies();
     STL0->getVTK().setName("levelset");
     std::array<double, dimensions> center{};
-    STL0->scale(scaling,scaling,scaling,center);
+    STL0->scale(scaling, scaling, scaling, center);
     bitpit::log::cout() << "n. vertex: " << STL0->getVertexCount() << std::endl;
     bitpit::log::cout() << "n. simplex: " << STL0->getCellCount() << std::endl;
     // Create initial octree mesh for levelset
@@ -316,7 +318,7 @@ void run(std::string filename,
     std::array<double, dimensions> stlMin, stlMax, meshMin, meshMax, delta;
     double h(0.), dh, dh_RBF_nodes;
     STL0->getBoundingBox(stlMin, stlMax);
-    delta = stlMax - stlMin;
+    delta   = stlMax - stlMin;
     meshMin = stlMin - mesh_range * delta;
     meshMax = stlMax + mesh_range * delta;
     for (int i = 0; i < dimensions; ++i) {
@@ -341,11 +343,10 @@ void run(std::string filename,
     timers_name.push_back("compute_levelset");
     time_start = MPI_Wtime();
 
-
     // Set levelset configuration
     bitpit::LevelSet levelset;
     levelset.setMesh(&mesh);
-    int id0 = levelset.addObject(std::move(STL0), 0);
+    int id0                               = levelset.addObject(std::move(STL0), 0);
     const bitpit::LevelSetObject &object0 = levelset.getObject(id0);
     std::vector<int> ids;
     levelset.getObject(id0).enableVTKOutput(bitpit::LevelSetWriteField::VALUE);
@@ -357,11 +358,10 @@ void run(std::string filename,
     mesh.write();
     bitpit::log::cout() << "Computed levelset within the narrow band... " << std::endl;
 
-
     // Adaptative Refinement
     std::vector<bitpit::adaption::Info> adaptionData_levelset;
     for (int r = 0; r < nb_adaptions; ++r) {
-        for (auto &cell: mesh.getCells()) {
+        for (auto &cell : mesh.getCells()) {
             long cellId = cell.getId();
             if (std::abs(object0.getValue(cellId)) < mesh.evalCellSize(cellId))
                 mesh.markCellForRefinement(cellId);
@@ -372,63 +372,61 @@ void run(std::string filename,
     }
     unsigned long nP_total = mesh.getCellCount();
 
-
     timers_values.push_back(MPI_Wtime() - time_start);
     timers_name.push_back("add_nodes_to_RBF");
     time_start = MPI_Wtime();
 
-
     // RBF PART
     bitpit::RBFBasisFunction basisFunction;
     switch (base_function) {
-        case 0:
-            basisFunction = bitpit::RBFBasisFunction::CUSTOM;
-            break;
-        case 1:
-            basisFunction = bitpit::RBFBasisFunction::WENDLANDC2;
-            break;
-        case 2:
-            basisFunction = bitpit::RBFBasisFunction::LINEAR;
-            break;
-        case 3:
-            basisFunction = bitpit::RBFBasisFunction::GAUSS90;
-            break;
-        case 4:
-            basisFunction = bitpit::RBFBasisFunction::GAUSS95;
-            break;
-        case 5:
-            basisFunction = bitpit::RBFBasisFunction::GAUSS99;
-            break;
-        case 6:
-            basisFunction = bitpit::RBFBasisFunction::C1C0;
-            break;
-        case 7:
-            basisFunction = bitpit::RBFBasisFunction::C2C0;
-            break;
-        case 8:
-            basisFunction = bitpit::RBFBasisFunction::C0C1;
-            break;
-        case 9:
-            basisFunction = bitpit::RBFBasisFunction::C1C1;
-            break;
-        case 10:
-            basisFunction = bitpit::RBFBasisFunction::C2C1;
-            break;
-        case 11:
-            basisFunction = bitpit::RBFBasisFunction::C0C2;
-            break;
-        case 12:
-            basisFunction = bitpit::RBFBasisFunction::C1C2;
-            break;
-        case 13:
-            basisFunction = bitpit::RBFBasisFunction::C2C2;
-            break;
-        case 14:
-            basisFunction = bitpit::RBFBasisFunction::COSINUS;
-            break;
-        default:
-            basisFunction = bitpit::RBFBasisFunction::LINEAR;
-            break;
+    case 0:
+        basisFunction = bitpit::RBFBasisFunction::CUSTOM;
+        break;
+    case 1:
+        basisFunction = bitpit::RBFBasisFunction::WENDLANDC2;
+        break;
+    case 2:
+        basisFunction = bitpit::RBFBasisFunction::LINEAR;
+        break;
+    case 3:
+        basisFunction = bitpit::RBFBasisFunction::GAUSS90;
+        break;
+    case 4:
+        basisFunction = bitpit::RBFBasisFunction::GAUSS95;
+        break;
+    case 5:
+        basisFunction = bitpit::RBFBasisFunction::GAUSS99;
+        break;
+    case 6:
+        basisFunction = bitpit::RBFBasisFunction::C1C0;
+        break;
+    case 7:
+        basisFunction = bitpit::RBFBasisFunction::C2C0;
+        break;
+    case 8:
+        basisFunction = bitpit::RBFBasisFunction::C0C1;
+        break;
+    case 9:
+        basisFunction = bitpit::RBFBasisFunction::C1C1;
+        break;
+    case 10:
+        basisFunction = bitpit::RBFBasisFunction::C2C1;
+        break;
+    case 11:
+        basisFunction = bitpit::RBFBasisFunction::C0C2;
+        break;
+    case 12:
+        basisFunction = bitpit::RBFBasisFunction::C1C2;
+        break;
+    case 13:
+        basisFunction = bitpit::RBFBasisFunction::C2C2;
+        break;
+    case 14:
+        basisFunction = bitpit::RBFBasisFunction::COSINUS;
+        break;
+    default:
+        basisFunction = bitpit::RBFBasisFunction::LINEAR;
+        break;
     }
     std::vector<double> values;
     std::vector<double> weights;
@@ -447,9 +445,9 @@ void run(std::string filename,
     for (size_t it_RBF = 0; it_RBF < nP_total; it_RBF++) {
         nodes[it_RBF] = mesh.evalCellCentroid(it_RBF);
         if (swap_inside > 0.0)
-            values[it_RBF] = - levelset.getObject(id0).getValue(it_RBF);
+            values[it_RBF] = -levelset.getObject(id0).getValue(it_RBF);
         else
-            values[it_RBF] = + levelset.getObject(id0).getValue(it_RBF);
+            values[it_RBF] = +levelset.getObject(id0).getValue(it_RBF);
         RBFObject.addNode(nodes[it_RBF]);
         radii[it_RBF] = mesh.evalCellSize(it_RBF) * radius_ratio;
     }
@@ -478,10 +476,10 @@ void run(std::string filename,
 
     // Compute the values for A
     bitpit::log::cout() << "Filling the matrix" << std::endl;
-    #pragma omp parallel
+#pragma omp parallel
     {
         Eigen::SparseMatrix<double, Eigen::RowMajor> A_private(nP_total, nP_total);
-        #pragma omp for
+#pragma omp for
         for (int i = 0; i < nP_total; i++) {
             for (int j = 0; j < nP_total; j++) {
                 double dist = RBFObject.calcDist(i, j) / radii[j];
@@ -491,7 +489,7 @@ void run(std::string filename,
                 }
             }
         }
-        #pragma omp critical
+#pragma omp critical
         {
             A = A + A_private;
         }
@@ -507,8 +505,7 @@ void run(std::string filename,
 
     bitpit::log::cout() << "Solving the system with Eigen" << std::endl;
     Eigen::VectorXd x;
-    if (radius_ratio <= 1.0 && nb_adaptions == 0)
-    {
+    if (radius_ratio <= 1.0 && nb_adaptions == 0) {
         bitpit::log::cout() << "Conjugate Gradient solver" << std::endl;
         Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Upper> cg;
         cg.setTolerance(TOL);
@@ -524,7 +521,7 @@ void run(std::string filename,
         }
     } else {
         bitpit::log::cout() << "Least Squares Conjugate Gradient solver" << std::endl;
-        Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double> > lscg;
+        Eigen::LeastSquaresConjugateGradient<Eigen::SparseMatrix<double>> lscg;
         lscg.setTolerance(TOL);
         lscg.compute(A);
         if (lscg.info() != Eigen::Success) {
@@ -551,43 +548,45 @@ void run(std::string filename,
     bitpit::log::cout() << "Added weights to RBFObject" << std::endl;
     bitpit::log::cout() << "Finished RBF training" << std::endl;
 
-
     std::size_t nMaxCellVertices = mesh.getCell(0).getVertexIds().size();
 
-    timers_values.push_back(MPI_Wtime()-time_start);
-    timers_name.push_back("output_RBF_and_analytical");
-    time_start = MPI_Wtime();
-
-    // RBF Output
-    bitpit::log::cout() << "Outputting" << std::endl;
-    std::vector<double> display_values;
-    display_values.resize(nP_total);
-    #pragma omp parallel
+    timers_values.push_back(MPI_Wtime() - time_start);
+    if (output_rbf_vtu > 0.0)
     {
-        std::vector<double> display_values_private;
-        display_values_private.resize(nP_total);
-        BITPIT_CREATE_WORKSPACE(vertexCoordinates, std::array<double BITPIT_COMMA dimensions>, nMaxCellVertices,
-                                ReferenceElementInfo::MAX_ELEM_VERTICES)
-        #pragma omp for
-        for (int i = 0; i < nP_total; i++) {
-            Cell cell = mesh.getCell(i);
-            const unsigned long global_id = cell.getId();
-            mesh.getCellVertexCoordinates(global_id, vertexCoordinates);
-            std::array<double, dimensions> point = cell.evalCentroid(vertexCoordinates);
-            std::vector<double> temp_disp = RBFObject.evalRBF(point);
-            display_values_private[global_id] = temp_disp[0]; //Only the first field is used, since there is only one
-        }
-        #pragma omp critical
+        timers_name.push_back("output_RBF_and_analytical");
+        time_start = MPI_Wtime();
+
+        // RBF Output
+        bitpit::log::cout() << "Outputting" << std::endl;
+        std::vector<double> display_values;
+        display_values.resize(nP_total);
+    #pragma omp parallel
         {
+            std::vector<double> display_values_private;
+            display_values_private.resize(nP_total);
+            BITPIT_CREATE_WORKSPACE(vertexCoordinates, std::array<double BITPIT_COMMA dimensions>, nMaxCellVertices,
+                                    ReferenceElementInfo::MAX_ELEM_VERTICES)
+    #pragma omp for
             for (int i = 0; i < nP_total; i++) {
-                display_values[i] += display_values_private[i];
+                Cell cell                     = mesh.getCell(i);
+                const unsigned long global_id = cell.getId();
+                mesh.getCellVertexCoordinates(global_id, vertexCoordinates);
+                std::array<double, dimensions> point = cell.evalCentroid(vertexCoordinates);
+                std::vector<double> temp_disp        = RBFObject.evalRBF(point);
+                display_values_private[global_id]    = temp_disp[0]; //Only the first field is used, since there is only one
+            }
+    #pragma omp critical
+            {
+                for (int i = 0; i < nP_total; i++) {
+                    display_values[i] += display_values_private[i];
+                }
             }
         }
-    }
-    mesh.getVTK().addData<double>("RBF", VTKFieldType::SCALAR, VTKLocation::CELL, display_values);
-    mesh.write();
+        mesh.getVTK().addData<double>("RBF", VTKFieldType::SCALAR, VTKLocation::CELL, display_values);
+        mesh.write();
 
-    timers_values.push_back(MPI_Wtime()-time_start);
+        timers_values.push_back(MPI_Wtime() - time_start);
+    }
     timers_name.push_back("compute_L2_error_and_output_error");
     time_start = MPI_Wtime();
 
