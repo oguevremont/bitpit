@@ -237,24 +237,30 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                       "max_num_threads",
                                       "tolerance",
                                        "scaling",
+                                       "scaling_x",
+                                       "scaling_y",
+                                       "scaling_z",
                                        "dx",
                                        "dy",
                                        "dz",
                                        "swap_inside",
                                        "output_rbf_vtu"};
-    std::vector<double>      values = {16,
-                                       0,
-                                       1,
-                                       2,
-                                       0.2,
-                                       1,
-                                       1e-8,
-                                       1.0,
-                                      0.0,
-                                      0.0,
-                                      0.0,
-                                      0,
-                                      0};
+    std::vector<double>      values = {16, //nb_subdivision
+                                       0,  //nb_adaptions
+                                       1,  //radius_ratio
+                                       2,  //base_function
+                                       0.2,//mesh_range
+                                       1,  //max_num_threads
+                                       1e-8,//tolerance
+                                      1.0, //scaling
+                                      1.0, //scaling_x
+                                      1.0, //scaling_y
+                                      1.0, //scaling_z
+                                      0.0, //dx
+                                      0.0, //dy
+                                      0.0, //dz
+                                      0,   //swap_inside
+                                      0};  //output_rbf_vtu
     for (int i = 0; i < names.size(); i++)
     {
         if (map.find(names[i]) == map.end())
@@ -279,7 +285,10 @@ void run(std::string filename,
     double mesh_range     = parameters["mesh_range"][0];
     int max_num_threads   = static_cast<int>(parameters["max_num_threads"][0]);
     double TOL            = parameters["tolerance"][0];
-    double scaling        = parameters["scaling"][0];
+    double scaling_global = parameters["scaling"][0];
+    double scaling_x      = parameters["scaling_x"][0];
+    double scaling_y      = parameters["scaling_y"][0];
+    double scaling_z      = parameters["scaling_z"][0];
     double dx             = parameters["dx"][0];
     double dy             = parameters["dy"][0];
     double dz             = parameters["dz"][0];
@@ -310,7 +319,10 @@ void run(std::string filename,
     STL0->initializeAdjacencies();
     STL0->getVTK().setName("levelset");
     std::array<double, dimensions> center{};
-    STL0->scale(scaling, scaling, scaling, center);
+    STL0->scale(scaling_global * scaling_x,
+                scaling_global * scaling_y,
+                scaling_global * scaling_z,
+                center);
     bitpit::log::cout() << "n. vertex: " << STL0->getVertexCount() << std::endl;
     bitpit::log::cout() << "n. simplex: " << STL0->getCellCount() << std::endl;
     // Create initial octree mesh for levelset
