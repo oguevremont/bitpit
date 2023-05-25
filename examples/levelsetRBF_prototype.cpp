@@ -244,7 +244,8 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                        "dy",
                                        "dz",
                                        "swap_inside",
-                                       "output_rbf_vtu"};
+                                       "output_rbf_vtu",
+                                       "binary_stl"};
     std::vector<double>      values = {16, //nb_subdivision
                                        0,  //nb_adaptions
                                        1,  //radius_ratio
@@ -260,7 +261,8 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                       0.0, //dy
                                       0.0, //dz
                                       0,   //swap_inside
-                                      0};  //output_rbf_vtu
+                                      0,   //output_rbf_vtu
+                                      0};  //binary_stl
     for (int i = 0; i < names.size(); i++)
     {
         if (map.find(names[i]) == map.end())
@@ -294,6 +296,7 @@ void run(std::string filename,
     double dz             = parameters["dz"][0];
     double swap_inside    = parameters["swap_inside"][0];
     double output_rbf_vtu = parameters["output_rbf_vtu"][0];
+    double binary_stl     = parameters["binary_stl"][0];
 
     std::vector<std::string> timers_name;
     std::vector<double> timers_values;
@@ -309,11 +312,12 @@ void run(std::string filename,
     std::unique_ptr<bitpit::SurfUnstructured> STL0(new bitpit::SurfUnstructured(dimensions - 1));
 #endif
     bitpit::log::cout() << " - Loading stl geometry" << std::endl;
-    // Make sure that the STL format is in binary (not ASCII)
+    // Make sure that the STL format is in the right format
+    bool is_binary_stl = binary_stl > 0;
     try {
-        STL0->importSTL(data_path + filename + ".stl", false);
+        STL0->importSTL(data_path + filename + ".stl", is_binary_stl);
     } catch (const std::bad_alloc) {
-        STL0->importSTL(data_path + filename + ".stl", true);
+        STL0->importSTL(data_path + filename + ".stl", !is_binary_stl);
     }
     STL0->deleteCoincidentVertices();
     STL0->initializeAdjacencies();
@@ -713,10 +717,10 @@ void run(std::string filename,
         bitpit::log::cout() << " - Loading stl geometry" << std::endl;
         // Make sure that the STL format is in binary (not ASCII)
         try {
-            STL0_bis->importSTL(data_path + filename + ".stl", false);
+            STL0_bis->importSTL(data_path + filename + ".stl", is_binary_stl);
         }
         catch (const std::bad_alloc){
-            STL0_bis->importSTL(data_path + filename + ".stl", true);
+            STL0_bis->importSTL(data_path + filename + ".stl", !is_binary_stl);
         }
         STL0_bis->deleteCoincidentVertices();
         STL0_bis->initializeAdjacencies();
