@@ -245,7 +245,8 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                        "dz",
                                        "swap_inside",
                                        "output_rbf_vtu",
-                                       "binary_stl"};
+                                       "binary_stl",
+                                       "absolute_inflation"};
     std::vector<double>      values = {16, //nb_subdivision
                                        0,  //nb_adaptions
                                        1,  //radius_ratio
@@ -262,7 +263,8 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
                                       0.0, //dz
                                       0,   //swap_inside
                                       0,   //output_rbf_vtu
-                                      0};  //binary_stl
+                                      0,   //binary_stl
+                                      0};  //absolute_inflation
     for (int i = 0; i < names.size(); i++)
     {
         if (map.find(names[i]) == map.end())
@@ -280,23 +282,24 @@ void run(std::string filename,
     // Parsing the parameters
     std::map<std::string, std::vector<double>> parameters;
     parse_parameters(parameters, parameter_file, " ");
-    int nb_subdivision    = static_cast<int>(parameters["nb_subdivision"][0]);
-    int nb_adaptions      = static_cast<int>(parameters["nb_adaptions"][0]);
-    double radius_ratio   = parameters["radius_ratio"][0];
-    int base_function     = static_cast<int>(parameters["base_function"][0]);
-    double mesh_range     = parameters["mesh_range"][0];
-    int max_num_threads   = static_cast<int>(parameters["max_num_threads"][0]);
-    double TOL            = parameters["tolerance"][0];
-    double scaling_global = parameters["scaling"][0];
-    double scaling_x      = parameters["scaling_x"][0];
-    double scaling_y      = parameters["scaling_y"][0];
-    double scaling_z      = parameters["scaling_z"][0];
-    double dx             = parameters["dx"][0];
-    double dy             = parameters["dy"][0];
-    double dz             = parameters["dz"][0];
-    double swap_inside    = parameters["swap_inside"][0];
-    double output_rbf_vtu = parameters["output_rbf_vtu"][0];
-    double binary_stl     = parameters["binary_stl"][0];
+    int nb_subdivision        = static_cast<int>(parameters["nb_subdivision"][0]);
+    int nb_adaptions          = static_cast<int>(parameters["nb_adaptions"][0]);
+    double radius_ratio       = parameters["radius_ratio"][0];
+    int base_function         = static_cast<int>(parameters["base_function"][0]);
+    double mesh_range         = parameters["mesh_range"][0];
+    int max_num_threads       = static_cast<int>(parameters["max_num_threads"][0]);
+    double TOL                = parameters["tolerance"][0];
+    double scaling_global     = parameters["scaling"][0];
+    double scaling_x          = parameters["scaling_x"][0];
+    double scaling_y          = parameters["scaling_y"][0];
+    double scaling_z          = parameters["scaling_z"][0];
+    double dx                 = parameters["dx"][0];
+    double dy                 = parameters["dy"][0];
+    double dz                 = parameters["dz"][0];
+    double swap_inside        = parameters["swap_inside"][0];
+    double output_rbf_vtu     = parameters["output_rbf_vtu"][0];
+    double binary_stl         = parameters["binary_stl"][0];
+    double absolute_inflation = parameters["absolute_inflation"][0];
 
     std::vector<std::string> timers_name;
     std::vector<double> timers_values;
@@ -379,7 +382,7 @@ void run(std::string filename,
     for (int r = 0; r < nb_adaptions; ++r) {
         for (auto &cell : mesh.getCells()) {
             long cellId = cell.getId();
-            if (std::abs(object0.getValue(cellId)) < mesh.evalCellSize(cellId))
+            if (std::abs(object0.getValue(cellId) - absolute_inflation) < mesh.evalCellSize(cellId))
                 mesh.markCellForRefinement(cellId);
         }
         adaptionData_levelset = mesh.update(true);
@@ -461,9 +464,9 @@ void run(std::string filename,
     for (size_t it_RBF = 0; it_RBF < nP_total; it_RBF++) {
         nodes[it_RBF] = mesh.evalCellCentroid(it_RBF);
         if (swap_inside > 0.0)
-            values[it_RBF] = -levelset.getObject(id0).getValue(it_RBF);
+            values[it_RBF] = - levelset.getObject(id0).getValue(it_RBF) + absolute_inflation;
         else
-            values[it_RBF] = +levelset.getObject(id0).getValue(it_RBF);
+            values[it_RBF] = + levelset.getObject(id0).getValue(it_RBF) - absolute_inflation;
         RBFObject.addNode(nodes[it_RBF]);
         radii[it_RBF] = mesh.evalCellSize(it_RBF) * radius_ratio;
     }
@@ -745,8 +748,8 @@ void run(std::string filename,
                 std::array<double, dimensions> point = cell.evalCentroid(vertexCoordinates_l2error);
                 std::vector<double> temp_disp = RBFObject.evalRBF(point);
                 //Analytical value calculations
-                l2_error += (levelset_for_error.getObject(id0).getValue(cell_id) - temp_disp[0]) *
-                            (levelset_for_error.getObject(id0).getValue(cell_id) - temp_disp[0]);
+                l2_error += (levelset_for_error.getObject(id0).getValue(cell_id) - absolute_inflation - temp_disp[0]) *
+                            (levelset_for_error.getObject(id0).getValue(cell_id) - absolute_inflation - temp_disp[0]);
             }
         }
     }
