@@ -352,6 +352,11 @@ void run(std::string filename,
 #endif
     STL0->translate(dx, dy, dz);
 
+    std::cout << "After rescale and translation" << std::endl;
+    STL0->getBoundingBox(stlMin, stlMax);
+    std::cout << "stlMin: " << stlMin[0] << " " << stlMin[1] << " " << stlMin[2] << std::endl;
+    std::cout << "stlMax: " << stlMax[0] << " " << stlMax[1] << " " << stlMax[2] << std::endl;
+
     mesh.initializeAdjacencies();
     mesh.initializeInterfaces();
     mesh.update();
