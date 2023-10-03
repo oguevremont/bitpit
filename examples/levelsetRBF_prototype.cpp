@@ -345,8 +345,8 @@ void run(std::string filename,
     }
     dh = h / nb_subdivision;
 #if BITPIT_ENABLE_MPI
-    //bitpit::VolOctree mesh(dimensions, meshMin, h, dh, MPI_COMM_WORLD);
-    bitpit::VolCartesian mesh(dimensions, meshMin, h, nb_subdivision);
+    bitpit::VolOctree mesh(dimensions, meshMin, h, dh, MPI_COMM_WORLD);
+    //bitpit::VolCartesian mesh(dimensions, meshMin, h, nb_subdivision);
 #else
     bitpit::VolOctree mesh(dimensions, meshMin, h, dh);
 #endif
