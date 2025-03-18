@@ -265,7 +265,7 @@ STLReader::Format STLReader::detectFormat(const std::string &filename)
     }
 
     // Read the number of facets
-    std::uint32_t nFacets;
+    unsigned int nFacets;
 
     fileStream.open(filename, std::ifstream::binary);
     fileStream.seekg(BINARY_HEADER_SIZE);
