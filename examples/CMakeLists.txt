@@ -76,6 +76,7 @@ if(BITPIT_BUILD_EXAMPLES)
     list(APPEND EXAMPLE_LIST "voloctree_mapper_example_00003")
     list(APPEND EXAMPLE_LIST "voloctree_mapper_example_00004")
     list(APPEND EXAMPLE_LIST "levelsetRBF_prototype")
+    list(APPEND EXAMPLE_LIST "stl_to_sdf_voxels")
 
     find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -99,6 +100,11 @@ if(BITPIT_BUILD_EXAMPLES)
         TARGET "POD_application_example_00001" "POD_example_00001" "POD_example_00002" "POD_example_00003" PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/pod"
+    )
+
+    add_custom_command(
+            TARGET "levelsetRBF_prototype" PRE_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/levelsetRBF_prototype.param" "${CMAKE_CURRENT_BINARY_DIR}/levelsetRBF_prototype.param"
     )
 
     install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data" DESTINATION doc/${PROJECT_NAME}-${BITPIT_VERSION}/examples)
