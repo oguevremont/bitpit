@@ -272,31 +272,8 @@ void run(std::string filename,
     }
     unsigned long nP_total = mesh.getCellCount();
 
-    bitpit::log::cout() << "Refining all cells to the max refinement level..." << std::endl;
-    // Get max refinement level in the current mesh
-    int maxLevel = 0;
-    for (const auto &cell : mesh.getCells()) {
-        maxLevel = std::max(maxLevel, mesh.getCellLevel(cell.getId()));
-    }
-
-    unsigned long before_balancing_nP = 0;
-
-    while (before_balancing_nP != nP_total)
-    {
-        before_balancing_nP = mesh.getCellCount();
-        // Refine all cells that are not at maxLevel
-        for (const auto &cell : mesh.getCells()) {
-            if (mesh.getCellLevel(cell.getId()) < maxLevel) {
-                mesh.markCellForRefinement(cell.getId());
-            }
-        }
-
-        // TODO Eventually not recompute the levelset in newly refined cells
-        adaptionData_levelset = mesh.update(true);
-        levelset.update(adaptionData_levelset);
-        mesh.write();
-        nP_total = mesh.getCellCount();
-    }
+    // To feed the VTU voxelized SDF file to the neural network, we need a uniform cartesian grid.
+    // This is handled by an external Python script
 
     timers_values.push_back(MPI_Wtime() - time_start);
 
