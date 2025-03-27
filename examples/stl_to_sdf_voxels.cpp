@@ -272,8 +272,58 @@ void run(std::string filename,
     }
     unsigned long nP_total = mesh.getCellCount();
 
-    // To feed the VTU voxelized SDF file to the neural network, we need a uniform cartesian grid.
-    // This is handled by an external Python script
+    // === Write SDF values and cell centers to CSV ===
+    std::string output_csv = "sdf_generated.csv";
+    std::ofstream csv_file(output_csv);
+    if (!csv_file.is_open()) {
+        std::cerr << "Failed to open output file: " << output_csv << std::endl;
+        return;
+    }
+
+    // Get max refinement level in the current mesh
+    int maxLevel = 0;
+    for (const auto &cell : mesh.getCells()) {
+        maxLevel = std::max(maxLevel, mesh.getCellLevel(cell.getId()));
+    }
+
+    // Extended CSV header
+    csv_file << "x,y,z,sdf,refinements_to_max";
+    for (int i = 0; i < 8; ++i)
+        csv_file << ",corner" << i << "_x,corner" << i << "_y,corner" << i << "_z";
+    csv_file << "\n";
+
+    for (const auto &cell : mesh.getCells()) {
+        long cellId = cell.getId();
+        auto center = mesh.evalCellCentroid(cellId);
+        double sdf = object0.getValue(cellId);
+        int cellLevel = mesh.getCellLevel(cellId);
+        int refinementSteps = maxLevel - cellLevel;
+
+        csv_file << center[0] << "," << center[1] << "," << center[2] << "," << sdf << "," << refinementSteps;
+
+        // Compute 8 corners from bounding box
+        std::array<double, 3> minPoint, maxPoint;
+        mesh.evalCellBoundingBox(cellId, &minPoint, &maxPoint);
+
+        std::vector<std::array<double, 3>> corners = {
+            {minPoint[0], minPoint[1], minPoint[2]},
+            {maxPoint[0], minPoint[1], minPoint[2]},
+            {minPoint[0], maxPoint[1], minPoint[2]},
+            {maxPoint[0], maxPoint[1], minPoint[2]},
+            {minPoint[0], minPoint[1], maxPoint[2]},
+            {maxPoint[0], minPoint[1], maxPoint[2]},
+            {minPoint[0], maxPoint[1], maxPoint[2]},
+            {maxPoint[0], maxPoint[1], maxPoint[2]},
+        };
+
+        for (const auto &corner : corners)
+            csv_file << "," << corner[0] << "," << corner[1] << "," << corner[2];
+
+        csv_file << "\n";
+    }
+
+    csv_file.close();
+    bitpit::log::cout() << "SDF values exported to " << output_csv << std::endl;
 
     timers_values.push_back(MPI_Wtime() - time_start);
 
