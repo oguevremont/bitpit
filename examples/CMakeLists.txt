@@ -77,6 +77,7 @@ if(BITPIT_BUILD_EXAMPLES)
     list(APPEND EXAMPLE_LIST "voloctree_mapper_example_00004")
     list(APPEND EXAMPLE_LIST "levelsetRBF_prototype")
     list(APPEND EXAMPLE_LIST "stl_to_sdf_voxels")
+    list(APPEND EXAMPLE_LIST "stl_to_bin_voxels")
 
     find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
