@@ -183,11 +183,18 @@ void run(std::string filename,
     bitpit::log::cout() << " - Loading stl geometry" << std::endl;
     // Make sure that the STL format is in the right format
     bool is_binary_stl = binary_stl > 0;
+    std::cout << "Data path: " << data_path + filename + ".stl" << std::endl;
     try {
         STL0->importSTL(data_path + filename + ".stl", is_binary_stl);
     } catch (const std::bad_alloc) {
         STL0->importSTL(data_path + filename + ".stl", !is_binary_stl);
     }
+
+    if (STL0->getVertexCount() == 0 || STL0->getCellCount() == 0) {
+        std::cerr << "Error: STL file contains no valid geometry." << std::endl;
+        return;
+    }
+
     STL0->deleteCoincidentVertices();
     STL0->initializeAdjacencies();
     STL0->getVTK().setName("levelset");
@@ -218,7 +225,7 @@ void run(std::string filename,
         h = std::max(h, meshMax[i] - meshMin[i]);
     }
     dh = h / nb_subdivision;
-    bitpit::VolCartesian mesh(dimensions, meshMin, h, dh);
+    bitpit::VolCartesian mesh(dimensions, meshMin, h, nb_subdivision);
     STL0->translate(dx, dy, dz);
 
     std::cout << "After rescale and translation" << std::endl;
@@ -253,19 +260,15 @@ void run(std::string filename,
 
     unsigned long nP_total = mesh.getCellCount();
 
-    // === Write SDF values and cell centers to CSV ===
-    std::string output_csv = "sdf_generated.csv";
+    // === Write Bin values and cell centers to CSV ===
+    std::string output_csv = "bin_generated.csv";
     std::ofstream csv_file(output_csv);
     if (!csv_file.is_open()) {
         std::cerr << "Failed to open output file: " << output_csv << std::endl;
         return;
     }
 
-    // Extended CSV header
-    csv_file << "x,y,z,sdf,refinements_to_max";
-    for (int i = 0; i < 8; ++i)
-        csv_file << ",corner" << i << "_x,corner" << i << "_y,corner" << i << "_z";
-    csv_file << "\n";
+    csv_file << "x,y,z,phase\n";
 
     const bitpit::PiercedVector<bitpit::Cell> &cells = mesh.getCells();
     int num_cells = static_cast<int>(cells.size());
@@ -278,29 +281,10 @@ void run(std::string filename,
         long cellId = cells[i].getId();
         auto center = mesh.evalCellCentroid(cellId);
         double sdf = object0.getValue(cellId);
-        int refinementSteps = 0; // no adaptive refinement in Cartesian
+        double bin = sdf > 1 ? 1 : 0;
         std::ostringstream ss;
 
-        ss << center[0] << "," << center[1] << "," << center[2] << "," << sdf << "," << refinementSteps;
-
-        std::array<double, 3> minPoint, maxPoint;
-        mesh.evalCellBoundingBox(cellId, &minPoint, &maxPoint);
-
-        std::vector<std::array<double, 3>> corners = {
-            {minPoint[0], minPoint[1], minPoint[2]},
-            {maxPoint[0], minPoint[1], minPoint[2]},
-            {minPoint[0], maxPoint[1], minPoint[2]},
-            {maxPoint[0], maxPoint[1], minPoint[2]},
-            {minPoint[0], minPoint[1], maxPoint[2]},
-            {maxPoint[0], minPoint[1], maxPoint[2]},
-            {minPoint[0], maxPoint[1], maxPoint[2]},
-            {maxPoint[0], maxPoint[1], maxPoint[2]},
-        };
-
-        for (const auto &corner : corners)
-            ss << "," << corner[0] << "," << corner[1] << "," << corner[2];
-
-        ss << "\n";
+        ss << center[0] << "," << center[1] << "," << center[2] << "," << bin << "\n";
         lines[i] = ss.str();
     }
 
@@ -309,9 +293,8 @@ void run(std::string filename,
         csv_file << line;
     }
 
-
     csv_file.close();
-    bitpit::log::cout() << "SDF values exported to " << output_csv << std::endl;
+    bitpit::log::cout() << "BIN values exported to " << output_csv << std::endl;
 
     timers_values.push_back(MPI_Wtime() - time_start);
 
