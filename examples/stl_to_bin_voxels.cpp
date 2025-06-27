@@ -97,8 +97,6 @@ parse_parameters(std::map<std::string, std::vector<double>> &map,
     else
         std::cout << "Unable to open file";
 
-    ////// TODO Add mesh_min_x, mesh_min_y, mesh_min_z, mesh_max_x, mesh_max_y, mesh_max_z
-
     // We add here the default values
     std::vector<std::string> names = {"nb_initial_subdivision",
                                       "nb_uniform_adaptations",
