@@ -220,12 +220,7 @@ void run(std::string filename,
         h = std::max(h, meshMax[i] - meshMin[i]);
     }
     dh = h / nb_subdivision;
-#if BITPIT_ENABLE_MPI
-    bitpit::VolOctree mesh(dimensions, meshMin, h, dh, MPI_COMM_WORLD);
-    //bitpit::VolCartesian mesh(dimensions, meshMin, h, nb_subdivision);
-#else
-    bitpit::VolOctree mesh(dimensions, meshMin, h, dh);
-#endif
+    bitpit::VolCartesian mesh(dimensions, meshMin, h, dh);
     STL0->translate(dx, dy, dz);
 
     std::cout << "After rescale and translation" << std::endl;
@@ -251,25 +246,13 @@ void run(std::string filename,
     std::vector<int> ids;
     levelset.getObject(id0).enableVTKOutput(bitpit::LevelSetWriteField::VALUE);
     levelset.setPropagateSign(true);
-    levelset.setSizeNarrowBand(3.0 * h);
+    levelset.setSizeNarrowBand(0.001 * h);
     // Compute the levelset
     levelset.compute(id0);
     // Write levelset information
     mesh.write();
     bitpit::log::cout() << "Computed levelset within the narrow band... " << std::endl;
 
-    // Adaptative Refinement
-    std::vector<bitpit::adaption::Info> adaptionData_levelset;
-    for (int r = 0; r < nb_adaptions; ++r) {
-        for (auto &cell : mesh.getCells()) {
-            long cellId = cell.getId();
-            if (std::abs(object0.getValue(cellId)) < mesh.evalCellSize(cellId))
-                mesh.markCellForRefinement(cellId);
-        }
-        adaptionData_levelset = mesh.update(true);
-        levelset.update(adaptionData_levelset);
-        mesh.write();
-    }
     unsigned long nP_total = mesh.getCellCount();
 
     // === Write SDF values and cell centers to CSV ===
@@ -280,28 +263,28 @@ void run(std::string filename,
         return;
     }
 
-    // Get max refinement level in the current mesh
-    int maxLevel = 0;
-    for (const auto &cell : mesh.getCells()) {
-        maxLevel = std::max(maxLevel, mesh.getCellLevel(cell.getId()));
-    }
-
     // Extended CSV header
     csv_file << "x,y,z,sdf,refinements_to_max";
     for (int i = 0; i < 8; ++i)
         csv_file << ",corner" << i << "_x,corner" << i << "_y,corner" << i << "_z";
     csv_file << "\n";
 
-    for (const auto &cell : mesh.getCells()) {
-        long cellId = cell.getId();
+    const bitpit::PiercedVector<bitpit::Cell> &cells = mesh.getCells();
+    int num_cells = static_cast<int>(cells.size());
+
+    // Collect results in thread-safe buffer
+    std::vector<std::string> lines(num_cells);
+
+#pragma omp parallel for
+    for (int i = 0; i < num_cells; ++i) {
+        long cellId = cells[i].getId();
         auto center = mesh.evalCellCentroid(cellId);
         double sdf = object0.getValue(cellId);
-        int cellLevel = mesh.getCellLevel(cellId);
-        int refinementSteps = maxLevel - cellLevel;
+        int refinementSteps = 0; // no adaptive refinement in Cartesian
+        std::ostringstream ss;
 
-        csv_file << center[0] << "," << center[1] << "," << center[2] << "," << sdf << "," << refinementSteps;
+        ss << center[0] << "," << center[1] << "," << center[2] << "," << sdf << "," << refinementSteps;
 
-        // Compute 8 corners from bounding box
         std::array<double, 3> minPoint, maxPoint;
         mesh.evalCellBoundingBox(cellId, &minPoint, &maxPoint);
 
@@ -317,10 +300,17 @@ void run(std::string filename,
         };
 
         for (const auto &corner : corners)
-            csv_file << "," << corner[0] << "," << corner[1] << "," << corner[2];
+            ss << "," << corner[0] << "," << corner[1] << "," << corner[2];
 
-        csv_file << "\n";
+        ss << "\n";
+        lines[i] = ss.str();
     }
+
+    // Write once in serial
+    for (const auto &line : lines) {
+        csv_file << line;
+    }
+
 
     csv_file.close();
     bitpit::log::cout() << "SDF values exported to " << output_csv << std::endl;

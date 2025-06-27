@@ -1,2 +1,2 @@
-nb_initial_subdivision nb_uniform_adaptations mesh_min_x mesh_min_y mesh_min_z mesh_max_x mesh_max_y mesh_max_z swap_inside binary_stl
-128                      0                     -0.6       -0.6        -0.6       0.6        0.6        0.6        0           1
+nb_initial_subdivision  mesh_min_x mesh_min_y mesh_min_z mesh_max_x mesh_max_y mesh_max_z swap_inside binary_stl
+128                        -0.6       -0.6        -0.6       0.6        0.6        0.6        0           1
